@@ -25,6 +25,7 @@ import {
   CheckoutError,
   orderView,
   readSession,
+  recordUnmatchedFunds,
   settleOrder,
   startAttempt,
 } from './payments';
@@ -221,6 +222,13 @@ export function createCheckoutWorker(options: CheckoutWorkerOptions): CheckoutWo
       nowMs: context.now(),
     });
     if (!event) return errorResponse('invalid_signature', 'The signature is not valid');
+    if (event.kind === 'unmatched_funds') {
+      const attempt = await getAttempt(context.db, event.attemptId);
+      const order = attempt ? await getOrder(context.db, attempt.order_id) : null;
+      if (attempt && attempt.rail_id === railId && order?.project_id === projectId) {
+        await recordUnmatchedFunds(context, attempt, event.ref, event);
+      }
+    }
     if (event.kind === 'payment') {
       const attempt =
         (event.attemptId ? await getAttempt(context.db, event.attemptId) : null) ??

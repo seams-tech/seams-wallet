@@ -1,17 +1,13 @@
 import { hasExactKeys } from '@shared/utils/exactKeys';
-import {
-  asRecord,
-  isArray,
-  isString,
-  requireNonEmptyString,
-  toOptionalTrimmedNonEmptyString,
-} from '@shared/utils/validation';
-import type { CheckoutMethod } from '../../shared/methods';
+import { asRecord, isArray, isString, requireNonEmptyString } from '@shared/utils/validation';
+import { toOptionalTrimmedNonEmptyString } from '@shared/utils/validation';
+import type { CheckoutMethod, CustomerField, KonbiniStore } from '../../shared/methods';
 import type { AttemptState } from '../../shared/orderState';
 import { hmacSha256Hex, timingSafeEqual } from '../../shared/signature';
-import { createRailHttp, type RailHttp } from './http';
+import { createRailHttp, type RailBody, type RailHttp } from './http';
 import {
   RailError,
+  acceptsOrder,
   type PaymentRail,
   type RailAccount,
   type RailAttempt,
@@ -20,6 +16,7 @@ import {
   type RailFailure,
   type RailModule,
   type RailPaymentState,
+  type RailStarted,
   type RailWebhook,
 } from './rail';
 
@@ -29,7 +26,32 @@ const KOMOJU_API_VERSION = '2025-01-28';
 /** KOMOJU keeps an idempotency key for 24 hours. After that, the rail looks the payment up. */
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60_000;
 
-const METHODS: ReadonlySet<CheckoutMethod> = new Set(['card']);
+const METHODS: ReadonlySet<CheckoutMethod> = new Set(['card', 'konbini', 'bank_transfer', 'paypay']);
+/** KOMOJU's limits for each method that takes yen only. */
+const YEN_LIMITS = {
+  konbini: [1, 300_000],
+  bank_transfer: [1, Number.MAX_SAFE_INTEGER],
+  paypay: [1, 1_000_000],
+} as const;
+const FIELDS: Readonly<Record<CheckoutMethod, readonly CustomerField[]>> = {
+  card: ['email'],
+  konbini: ['konbini_store', 'email'],
+  bank_transfer: ['family_name', 'given_name', 'family_name_kana', 'given_name_kana', 'email', 'phone'],
+  paypay: [],
+};
+/** KOMOJU's name for each store. */
+const STORES: Readonly<Record<KonbiniStore, string>> = {
+  seven_eleven: 'seven-eleven',
+  lawson: 'lawson',
+  family_mart: 'family-mart',
+  ministop: 'ministop',
+  daily_yamazaki: 'daily-yamazaki',
+  seicomart: 'seicomart',
+};
+/** The payment types that wait in `authorized` until the customer pays at a store or a bank. */
+const OFFLINE_TYPES: readonly unknown[] = ['konbini', 'bank_transfer', 'pay_easy'];
+/** A payment that the server made directly has this prefix in its reference. A card has a session. */
+const PAYMENT_REF = 'payment:';
 
 /** The state of an attempt for each status of a KOMOJU payment. */
 const PAYMENT_STATES: Readonly<Record<string, AttemptState>> = {
@@ -53,20 +75,96 @@ function readFailure(body: Record<string, unknown>): RailFailure {
   };
 }
 
-function sessionState(session: Record<string, unknown>): RailPaymentState {
-  const payment = asRecord(session.payment);
-  if (!payment) {
-    const state = session.status === 'cancelled' ? 'cancelled' : session.expired === true ? 'expired' : 'created';
-    return { state, paid: null, failure: null };
-  }
+function paymentState(payment: Record<string, unknown>): RailPaymentState {
   const status = String(payment.status);
-  const state = PAYMENT_STATES[status];
+  const offline = OFFLINE_TYPES.includes(asRecord(payment.payment_details)?.type);
+  const state = status === 'authorized' && offline ? 'pending_offline' : PAYMENT_STATES[status];
   if (!state) throw new RailError('unavailable', 'unknown_status', `Unknown payment status ${status}`);
   return {
     state,
     paid: state === 'succeeded' ? { amount: Number(payment.total), currency: String(payment.currency) } : null,
     failure: status === 'failed' ? { code: 'payment_failed', message: 'The payment failed' } : null,
   };
+}
+
+function sessionState(session: Record<string, unknown>): RailPaymentState {
+  const payment = asRecord(session.payment);
+  if (payment) return paymentState(payment);
+  const state = session.status === 'cancelled' ? 'cancelled' : session.expired === true ? 'expired' : 'created';
+  return { state, paid: null, failure: null };
+}
+
+/** The path of a reference: a session for a card, a payment for the other methods. */
+function refPath(ref: string): string {
+  return ref.startsWith(PAYMENT_REF)
+    ? `/payments/${encodeURIComponent(ref.slice(PAYMENT_REF.length))}`
+    : sessionPath(ref);
+}
+
+function readRef(ref: string, body: Record<string, unknown>): RailPaymentState {
+  return ref.startsWith(PAYMENT_REF) ? paymentState(body) : sessionState(body);
+}
+
+/** The details that KOMOJU needs to make a payment of one method on the server. */
+function paymentDetails(attempt: RailAttempt): RailBody {
+  const { details } = attempt;
+  switch (attempt.method) {
+    case 'konbini':
+      return {
+        type: 'konbini',
+        store: STORES[details.konbini_store as KonbiniStore] ?? '',
+        email: details.email ?? '',
+        expiry_days: attempt.offlineDays,
+      };
+    case 'bank_transfer':
+      return {
+        type: 'bank_transfer',
+        email: details.email ?? '',
+        phone: details.phone ?? '',
+        family_name: details.family_name ?? '',
+        given_name: details.given_name ?? '',
+        family_name_kana: details.family_name_kana ?? '',
+        given_name_kana: details.given_name_kana ?? '',
+        expiry_days: attempt.offlineDays,
+      };
+    default:
+      return { type: attempt.method };
+  }
+}
+
+/** The next step of a payment that the server made, as the browser gets it. */
+function nextStep(payment: Record<string, unknown>): Pick<RailStarted, 'start' | 'deadlineMs'> {
+  const details = asRecord(payment.payment_details) ?? {};
+  const text = (value: unknown): string | null => toOptionalTrimmedNonEmptyString(value) ?? null;
+  const deadlineMs = Date.parse(String(payment.payment_deadline ?? details.payment_deadline));
+  const instructionsUrl = text(details.instructions_url);
+  if (details.type === 'konbini') {
+    const store = (Object.keys(STORES) as KonbiniStore[]).find((name) => STORES[name] === details.store);
+    // KOMOJU says not to show the 7-Eleven code. That store's voucher is KOMOJU's own page.
+    const hidden = store === 'seven_eleven';
+    const code = {
+      stores: store ? [store] : [],
+      paymentCode: hidden ? null : text(details.receipt),
+      confirmationCode: hidden ? null : text(details.confirmation_code),
+    };
+    return { start: { kind: 'voucher', deadlineMs, instructionsUrl, codes: [code] }, deadlineMs };
+  }
+  if (details.type === 'bank_transfer') {
+    return {
+      start: {
+        kind: 'bank_details',
+        deadlineMs,
+        instructionsUrl,
+        bankName: text(details.bank_name) ?? '',
+        branchName: text(details.account_branch_name) ?? '',
+        accountType: text(details.account_type) ?? '',
+        accountNumber: text(details.account_number) ?? '',
+        accountHolder: text(details.account_name) ?? '',
+      },
+      deadlineMs,
+    };
+  }
+  return { start: { kind: 'redirect', url: requireNonEmptyString(details.redirect_url, 'redirect URL') } };
 }
 
 function sessionPath(ref: string): string {
@@ -85,14 +183,36 @@ function connectKomoju(account: RailAccount, context: RailContext): PaymentRail 
   });
 
   async function read(ref: string): Promise<RailPaymentState> {
-    return sessionState(await http.get(sessionPath(ref)));
+    return readRef(ref, await http.get(refPath(ref)));
   }
 
-  /** The session of an attempt whose idempotency key is too old to use again. */
-  async function findSession(attemptId: string): Promise<string | null> {
-    const list = await http.get(`/payments?external_order_num=${encodeURIComponent(attemptId)}`);
-    const first = isArray(list.data) ? asRecord(list.data[0]) : null;
-    return isString(first?.session) ? first.session : null;
+  /** The payment of an attempt whose idempotency key is too old to use again. */
+  async function findPayment(attempt: RailAttempt): Promise<Record<string, unknown> | null> {
+    if (context.now() - attempt.createdAtMs <= IDEMPOTENCY_WINDOW_MS) return null;
+    const list = await http.get(`/payments?external_order_num=${encodeURIComponent(attempt.id)}`);
+    return isArray(list.data) ? asRecord(list.data[0]) : null;
+  }
+
+  /** Makes the payment of a method that needs no card fields: the server gives all details. */
+  async function startDirect(attempt: RailAttempt): Promise<RailStarted> {
+    const payment =
+      (await findPayment(attempt)) ??
+      (await http.post(
+        '/payments',
+        {
+          amount: attempt.amount,
+          // Without this, some API versions add 10% tax to the amount.
+          tax: 0,
+          currency: attempt.currency,
+          external_order_num: attempt.id,
+          return_url: attempt.returnUrl,
+          locale: attempt.locale,
+          payment_details: paymentDetails(attempt),
+        },
+        attempt.id,
+      ));
+    const ref = `${PAYMENT_REF}${requireNonEmptyString(payment.id, 'payment id')}`;
+    return { ref, payment: paymentState(payment), ...nextStep(payment) };
   }
 
   async function verify(webhook: RailWebhook): Promise<RailEvent | null> {
@@ -104,17 +224,18 @@ function connectKomoju(account: RailAccount, context: RailContext): PaymentRail 
     const data = asRecord(event.data) ?? {};
     const attemptId = data.external_order_num;
     if (!String(event.type).startsWith('payment.') || !isString(attemptId)) return { kind: 'ignored' };
-    return { kind: 'payment', attemptId, ref: isString(data.session) ? data.session : null };
+    // The attempt names its own payment, so the event needs no reference.
+    return { kind: 'payment', attemptId, ref: null };
   }
 
   return {
     events: { kind: 'webhook', verify },
     read,
-    async start(attempt: RailAttempt) {
+    async start(attempt: RailAttempt): Promise<RailStarted> {
+      if (attempt.method !== 'card') return startDirect(attempt);
       const publishableKey = account.public.publishableKey ?? '';
-      const old = context.now() - attempt.createdAtMs > IDEMPOTENCY_WINDOW_MS;
-      const existing = old ? await findSession(attempt.id) : null;
-      const session = existing
+      const existing = (await findPayment(attempt))?.session;
+      const session = isString(existing)
         ? await http.get(sessionPath(existing))
         : await http.post(
             '/sessions',
@@ -138,7 +259,7 @@ function connectKomoju(account: RailAccount, context: RailContext): PaymentRail 
     },
     async cancel(ref) {
       try {
-        await http.post(`${sessionPath(ref)}/cancel`, {});
+        await http.post(`${refPath(ref)}/cancel`, {});
         return { kind: 'cancelled' };
       } catch (error) {
         // KOMOJU refuses the cancel of a session that is completed.
@@ -152,7 +273,8 @@ function connectKomoju(account: RailAccount, context: RailContext): PaymentRail 
 export const komojuRail: RailModule = {
   id: 'komoju',
   methods: METHODS,
-  fields: () => ['email'],
+  accepts: (method, currency, amount) => acceptsOrder(METHODS, YEN_LIMITS, method, currency, amount),
+  fields: (method) => FIELDS[method],
   parseAccount(input) {
     if (!hasExactKeys(input, ['publishableKey', 'secretKey', 'webhookSecret'])) {
       throw new Error('A KOMOJU account has a publishableKey, a secretKey and a webhookSecret');

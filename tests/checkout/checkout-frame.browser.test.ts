@@ -262,3 +262,95 @@ test.describe('who can embed the frame', () => {
     expect(await frame?.locator('main.co').count().catch(() => 0)).toBe(0);
   });
 });
+
+test.describe('konbini, bank transfer and PayPay in the frame', () => {
+  let japan: FakeProvider;
+
+  /** Cards on one rail and the Japanese methods on another: two providers in one page. */
+  async function mixedShop(page: Page) {
+    japan = new FakeProvider();
+    const cards = new FakeProvider();
+    checkout = await openCheckout({
+      rails: [fakeRail(cards, 'fake', ['card']), fakeRail(japan, 'fake2', ['konbini', 'bank_transfer', 'paypay'])],
+    });
+    await checkout.setUp({ card: 'fake', konbini: 'fake2', bank_transfer: 'fake2', paypay: 'fake2' });
+    await openShop(page, { ...checkout, provider: cards });
+    // The wallet's page opens in a tab of its own, so the route is of the browser context.
+    await page.context().route('https://provider.example.test/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>Provider page</h1>' }),
+    );
+    return (await checkout.createOrder()).body;
+  }
+
+  test('konbini: the voucher is a Seams screen, the result is pending, and another method cancels it', async ({ page }) => {
+    const order = await mixedShop(page);
+    await openCheckoutInPage(page, { clientToken: order.clientToken });
+    const frame = frameOf(page);
+    await expect(frame.getByRole('radio')).toHaveCount(4);
+    // No method is selected at the start, and nothing is issued.
+    await expect(frame.getByRole('radio', { checked: true })).toHaveCount(0);
+    await frame.getByRole('radio', { name: 'Convenience store' }).check();
+    await frame.getByRole('combobox', { name: 'Store' }).selectOption('lawson');
+    expect(japan.calls).toEqual([]);
+    await frame.getByRole('button', { name: /^Pay/ }).click();
+
+    await expect(frame.getByRole('heading', { name: 'Pay at the store' })).toBeVisible();
+    await expect(frame.getByText('123456')).toBeVisible();
+    await expect(frame.getByText('Lawson, FamilyMart')).toBeVisible();
+    await expect(frame.getByText(/^Pay by /)).toBeVisible();
+    await expect(frame.getByRole('link', { name: 'Open the payment instructions' })).toHaveAttribute(
+      'href',
+      'https://provider.example.test/voucher/fp_1',
+    );
+    await frame.getByRole('button', { name: 'Done' }).click();
+    expect(await checkoutResult(page)).toBe('pending');
+
+    // The voucher comes back when the customer opens the checkout again.
+    await openCheckoutInPage(page, { clientToken: order.clientToken });
+    await expect(frame.getByText('123456')).toBeVisible();
+    await frame.getByRole('button', { name: 'Use another payment method' }).click();
+    await frame.getByRole('radio', { name: 'Card' }).check();
+    await frame.getByLabel('Card number').fill(GOOD_CARD);
+    expect(japan.calls).toEqual(['start:konbini', 'cancel:fp_1']);
+    await frame.getByRole('button', { name: /^Pay/ }).click();
+    await expect(frame.getByRole('heading', { name: 'Payment complete' })).toBeVisible();
+  });
+
+  test('bank transfer: the account details are a Seams screen', async ({ page }) => {
+    const order = await mixedShop(page);
+    await openCheckoutInPage(page, { clientToken: order.clientToken, options: { locale: 'ja' } });
+    const frame = frameOf(page, 'お支払い');
+    await frame.getByRole('radio', { name: '銀行振込' }).check();
+    await frame.getByRole('button', { name: /を支払う$/ }).click();
+    await expect(frame.getByRole('heading', { name: '銀行振込でお支払いください' })).toBeVisible();
+    await expect(frame.getByText('Seams Bank')).toBeVisible();
+    await expect(frame.getByText('1234567')).toBeVisible();
+  });
+
+  test('PayPay: the wallet opens in its own tab, and the frame shows the receipt after the approval', async ({ page }) => {
+    const order = await mixedShop(page);
+    await openCheckoutInPage(page, { clientToken: order.clientToken });
+    const frame = frameOf(page);
+    await frame.getByRole('radio', { name: 'PayPay' }).check();
+    await frame.getByRole('button', { name: /^Pay/ }).click();
+    await expect(frame.getByRole('heading', { name: 'Approve the payment with PayPay' })).toBeVisible();
+    const [wallet] = await Promise.all([
+      page.waitForEvent('popup'),
+      frame.getByRole('link', { name: 'Open PayPay' }).click(),
+    ]);
+    await wallet.waitForURL('https://provider.example.test/paypay/fp_1');
+    await expect(frame.getByRole('heading', { name: 'Confirming your payment' })).toBeVisible();
+    // The shop's page is still there, under the dialog.
+    await expect(page.getByRole('heading', { name: 'Baumkuchen shop' })).toBeAttached();
+
+    japan.pay('fp_1');
+    await checkout.webhook('fp_1', 'fake2', japan);
+    await expect(frame.getByRole('heading', { name: 'Payment complete' })).toBeVisible();
+  });
+
+  test('the return page in a tab of its own tells the customer to go back to the shop', async ({ page }) => {
+    await mixedShop(page);
+    await page.goto('https://checkout.example.test/return?session_id=x');
+    await expect(page.getByText('You can close this window and go back to the shop.')).toBeVisible();
+  });
+});

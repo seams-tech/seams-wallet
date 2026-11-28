@@ -22,7 +22,7 @@ const intent = (change: Record<string, unknown> = {}) => ({
   amount_received: 0,
   currency: 'jpy',
   last_payment_error: null,
-  metadata: { seams_attempt: 'att-1' },
+  metadata: { seams_attempt: 'att-1', seams_method: 'card' },
   ...change,
 });
 
@@ -70,6 +70,7 @@ test.describe('the Stripe rail', () => {
       currency: 'jpy',
       'allowed_payment_method_types[0]': 'card',
       'metadata[seams_attempt]': 'att-1',
+      'metadata[seams_method]': 'card',
       'metadata[seams_order]': 'order-1042',
       receipt_email: 'buyer@example.com',
     });
@@ -160,5 +161,158 @@ test.describe('the Stripe webhook', () => {
     for (const body of [foreign, other]) {
       expect(await verify(body, await signTimestamped(KEYS.webhookSecret, body, NOW_MS))).toEqual({ kind: 'ignored' });
     }
+  });
+});
+
+test.describe('the Stripe rail: konbini, bank transfer and PayPay', () => {
+  const body = (sent: { text: string }) => Object.fromEntries(new URLSearchParams(sent.text));
+  const konbiniIntent = intent({
+    status: 'requires_action',
+    metadata: { seams_attempt: 'att-1', seams_method: 'konbini' },
+    next_action: {
+      type: 'konbini_display_details',
+      konbini_display_details: {
+        expires_at: 1_800_000_000,
+        hosted_voucher_url: 'https://payments.stripe.com/konbini/voucher/x',
+        stores: {
+          familymart: { payment_code: '123456', confirmation_number: '11111111110' },
+          lawson: { payment_code: '654321' },
+          ministop: null,
+        },
+      },
+    },
+  });
+
+  test('konbini: the server confirms, and the voucher has a code for each store', async () => {
+    const { rail, sent } = fakeStripe([{ body: konbiniIntent }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'konbini', details: { full_name: '山田 太郎', email: 'buyer@example.com' } });
+    expect(started).toMatchObject({
+      ref: 'pi_1',
+      payment: { state: 'pending_offline' },
+      deadlineMs: 1_800_000_000_000,
+      start: {
+        kind: 'voucher',
+        deadlineMs: 1_800_000_000_000,
+        instructionsUrl: 'https://payments.stripe.com/konbini/voucher/x',
+        codes: [
+          { stores: ['family_mart'], paymentCode: '123456', confirmationCode: '11111111110' },
+          { stores: ['lawson'], paymentCode: '654321', confirmationCode: null },
+        ],
+      },
+    });
+    expect(body(sent[0]!)).toMatchObject({
+      'allowed_payment_method_types[0]': 'konbini',
+      confirm: 'true',
+      'payment_method_data[type]': 'konbini',
+      'payment_method_data[billing_details][name]': '山田 太郎',
+      'payment_method_data[billing_details][email]': 'buyer@example.com',
+      'payment_method_options[konbini][expires_after_days]': '3',
+    });
+  });
+
+  test('a voucher that expired is expired, and a refused wallet payment is failed', async () => {
+    const error = (code: string) => ({ status: 'requires_payment_method', last_payment_error: { code, message: 'No' } });
+    const konbini = { seams_attempt: 'att-1', seams_method: 'konbini' };
+    const cases = [
+      [{ ...error('payment_intent_payment_attempt_expired'), metadata: konbini }, 'expired'],
+      [{ ...error('payment_intent_authentication_failure'), metadata: { ...konbini, seams_method: 'paypay' } }, 'failed'],
+      // A declined card can be tried again in the same PaymentIntent.
+      [error('card_declined'), 'created'],
+    ] as const;
+    for (const [change, state] of cases) {
+      expect((await fakeStripe([{ body: intent(change) }]).rail.read('pi_1')).state).toBe(state);
+    }
+  });
+
+  test('bank transfer: one customer for the attempt, and the bank details as data', async () => {
+    const bankIntent = intent({
+      status: 'requires_action',
+      next_action: {
+        type: 'display_bank_transfer_instructions',
+        display_bank_transfer_instructions: {
+          amount_remaining: 4600,
+          hosted_instructions_url: 'https://payments.stripe.com/bank/x',
+          financial_addresses: [
+            { type: 'zengin', zengin: { bank_name: 'みずほ銀行', branch_name: '東京', account_type: 'futsu', account_number: '1234567', account_holder_name: 'ｾ-ﾑｽﾞ' } },
+          ],
+        },
+      },
+    });
+    const { rail, sent } = fakeStripe([{ body: { id: 'cus_1' } }, { body: bankIntent }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'bank_transfer', details: { full_name: '山田 太郎', email: 'buyer@example.com' } });
+    expect(started.payment.state).toBe('pending_offline');
+    expect(started.deadlineMs).toBeUndefined();
+    expect(started.start).toEqual({
+      kind: 'bank_details',
+      deadlineMs: null,
+      instructionsUrl: 'https://payments.stripe.com/bank/x',
+      bankName: 'みずほ銀行',
+      branchName: '東京',
+      accountType: 'futsu',
+      accountNumber: '1234567',
+      accountHolder: 'ｾ-ﾑｽﾞ',
+    });
+    expect(sent[0]?.url).toBe('https://api.stripe.com/v1/customers');
+    expect(sent[0]?.headers.get('idempotency-key')).toBe('att-1-customer');
+    expect(body(sent[0]!)).toMatchObject({ 'metadata[seams_attempt]': 'att-1', email: 'buyer@example.com' });
+    expect(body(sent[1]!)).toMatchObject({
+      customer: 'cus_1',
+      'allowed_payment_method_types[0]': 'customer_balance',
+      'payment_method_data[type]': 'customer_balance',
+      'payment_method_options[customer_balance][funding_type]': 'bank_transfer',
+      'payment_method_options[customer_balance][bank_transfer][type]': 'jp_bank_transfer',
+    });
+  });
+
+  test('PayPay: the customer goes to the URL that Stripe gives', async () => {
+    const paypay = intent({
+      status: 'requires_action',
+      next_action: { type: 'redirect_to_url', redirect_to_url: { url: 'https://hooks.stripe.com/redirect/x' } },
+    });
+    const { rail, sent } = fakeStripe([{ body: paypay }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'paypay', details: {} });
+    expect(started.payment.state).toBe('requires_action');
+    expect(started.start).toEqual({ kind: 'redirect', url: 'https://hooks.stripe.com/redirect/x' });
+    expect(body(sent[0]!)).toMatchObject({
+      'payment_method_data[type]': 'paypay',
+      return_url: 'https://checkout.example.test/return',
+    });
+  });
+
+  test('money in a cash balance that paid no payment is reported for its attempt', async () => {
+    const { rail, sent } = fakeStripe([{ body: { id: 'cus_1', metadata: { seams_attempt: 'att-1' } } }, { body: { id: 'cus_2', metadata: {} } }]);
+    const event = (customer: string) =>
+      JSON.stringify({ id: 'evt_9', type: 'cash_balance.funds_available', data: { object: { object: 'cash_balance', customer, available: { jpy: 4000 } } } });
+    const verify = async (text: string) =>
+      rail.events.verify({
+        body: text,
+        header: () => null,
+        nowMs: NOW_MS,
+      });
+    expect(await verify(event('cus_1'))).toBeNull();
+    const signed = async (text: string) => {
+      const signature = await signTimestamped(KEYS.webhookSecret, text, NOW_MS);
+      return rail.events.verify({ body: text, header: () => signature, nowMs: NOW_MS });
+    };
+    expect(await signed(event('cus_1'))).toEqual({
+      kind: 'unmatched_funds',
+      attemptId: 'att-1',
+      ref: 'cus_1:evt_9',
+      amount: 4000,
+      currency: 'JPY',
+    });
+    expect(sent[0]?.url).toBe('https://api.stripe.com/v1/customers/cus_1');
+    // A customer that the checkout did not make.
+    expect(await signed(event('cus_2'))).toEqual({ kind: 'ignored' });
+  });
+
+  test('each method but the card takes yen only, inside the limits of Stripe', () => {
+    expect(stripeRail.accepts('card', 'USD', 100)).toBe(true);
+    expect(stripeRail.accepts('konbini', 'USD', 1000)).toBe(false);
+    expect(stripeRail.accepts('konbini', 'JPY', 119)).toBe(false);
+    expect(stripeRail.accepts('konbini', 'JPY', 300_000)).toBe(true);
+    expect(stripeRail.accepts('konbini', 'JPY', 300_001)).toBe(false);
+    expect(stripeRail.accepts('paypay', 'JPY', 49)).toBe(false);
+    expect(stripeRail.fields('konbini')).toEqual(['full_name', 'email']);
   });
 });

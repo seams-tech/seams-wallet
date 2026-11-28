@@ -117,10 +117,10 @@ test.describe('the KOMOJU webhook', () => {
   const verify = (body: string, signature: string | null) =>
     rail.events.verify({ body, header: (name) => (name === 'x-komoju-signature' ? signature : null), nowMs: NOW_MS });
 
-  test('a signed payment event names its attempt and its session', async () => {
+  test('a signed payment event names its attempt', async () => {
     const body = event('payment.captured', payment('captured'));
     const signature = await hmacSha256Hex(KEYS.webhookSecret, body);
-    expect(await verify(body, signature)).toEqual({ kind: 'payment', attemptId: 'att-1', ref: 'ses_1' });
+    expect(await verify(body, signature)).toEqual({ kind: 'payment', attemptId: 'att-1', ref: null });
   });
 
   test('a wrong token, a changed body and a missing header are refused', async () => {
@@ -135,5 +135,113 @@ test.describe('the KOMOJU webhook', () => {
     for (const body of bodies) {
       expect(await verify(body, await hmacSha256Hex(KEYS.webhookSecret, body))).toEqual({ kind: 'ignored' });
     }
+  });
+});
+
+test.describe('the KOMOJU rail: konbini, bank transfer and PayPay', () => {
+  const konbini = (store: string, change: Record<string, unknown> = {}) => ({
+    ...payment('authorized'),
+    payment_deadline: '2026-12-01T14:59:59Z',
+    payment_details: {
+      type: 'konbini',
+      store,
+      receipt: '12345',
+      confirmation_code: '6789',
+      instructions_url: 'https://komoju.com/en/instructions/pay_1',
+    },
+    ...change,
+  });
+  const deadlineMs = Date.parse('2026-12-01T14:59:59Z');
+
+  test('konbini: the server makes the payment, with no tax, and the voucher has the code', async () => {
+    const { rail, sent } = fakeKomoju([{ body: konbini('lawson') }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'konbini', details: { konbini_store: 'lawson', email: 'buyer@example.com' } });
+    expect(started).toEqual({
+      ref: 'payment:pay_1',
+      payment: { state: 'pending_offline', paid: null, failure: null },
+      deadlineMs,
+      start: {
+        kind: 'voucher',
+        deadlineMs,
+        instructionsUrl: 'https://komoju.com/en/instructions/pay_1',
+        codes: [{ stores: ['lawson'], paymentCode: '12345', confirmationCode: '6789' }],
+      },
+    });
+    expect(sent[0]?.url).toBe('https://komoju.com/api/v1/payments');
+    expect(sent[0]?.headers.get('x-komoju-idempotency')).toBe('att-1');
+    expect(JSON.parse(sent[0]!.text)).toEqual({
+      amount: 4600,
+      tax: 0,
+      currency: 'JPY',
+      external_order_num: 'att-1',
+      return_url: 'https://checkout.example.test/return',
+      locale: 'ja',
+      payment_details: { type: 'konbini', store: 'lawson', email: 'buyer@example.com', expiry_days: 3 },
+    });
+  });
+
+  test('7-Eleven: the code is not shown, and the voucher is the page of KOMOJU', async () => {
+    const { rail, sent } = fakeKomoju([{ body: konbini('seven-eleven') }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'konbini', details: { konbini_store: 'seven_eleven', email: 'b@example.com' } });
+    expect(JSON.parse(sent[0]!.text).payment_details.store).toBe('seven-eleven');
+    expect(started.start).toMatchObject({
+      instructionsUrl: 'https://komoju.com/en/instructions/pay_1',
+      codes: [{ stores: ['seven_eleven'], paymentCode: null, confirmationCode: null }],
+    });
+  });
+
+  test('bank transfer: the names and the phone go to KOMOJU, and the account comes back as data', async () => {
+    const bank = {
+      ...payment('authorized'),
+      payment_details: {
+        type: 'bank_transfer',
+        bank_name: '三井住友銀行',
+        account_branch_name: '東京',
+        account_type: '普通',
+        account_number: '1234567',
+        account_name: 'ｺﾓｼﾞｭ',
+        instructions_url: 'https://komoju.com/en/instructions/pay_1',
+        payment_deadline: '2026-12-01T14:59:59Z',
+      },
+    };
+    const details = { family_name: '山田', given_name: '太郎', family_name_kana: 'ヤマダ', given_name_kana: 'タロウ', email: 'b@example.com', phone: '09012345678' };
+    const { rail, sent } = fakeKomoju([{ body: bank }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'bank_transfer', details });
+    expect(started.payment.state).toBe('pending_offline');
+    expect(started.start).toMatchObject({ kind: 'bank_details', bankName: '三井住友銀行', accountHolder: 'ｺﾓｼﾞｭ', deadlineMs });
+    expect(JSON.parse(sent[0]!.text).payment_details).toEqual({ type: 'bank_transfer', ...details, expiry_days: 3 });
+  });
+
+  test('PayPay: the payment waits for the wallet, at the URL that KOMOJU gives', async () => {
+    const wallet = { ...payment('pending'), payment_details: { type: 'paypay', redirect_url: 'https://komoju.com/paypay/x' } };
+    const { rail, sent } = fakeKomoju([{ body: wallet }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'paypay', details: {} });
+    expect(started).toMatchObject({
+      ref: 'payment:pay_1',
+      payment: { state: 'requires_action' },
+      start: { kind: 'redirect', url: 'https://komoju.com/paypay/x' },
+    });
+    expect(JSON.parse(sent[0]!.text).payment_details).toEqual({ type: 'paypay' });
+  });
+
+  test('a payment reference reads and cancels the payment, not a session', async () => {
+    const read = fakeKomoju([{ body: { ...konbini('lawson'), status: 'captured' } }]);
+    expect(await read.rail.read('payment:pay_1')).toEqual({
+      state: 'succeeded',
+      paid: { amount: 4600, currency: 'JPY' },
+      failure: null,
+    });
+    expect(read.sent[0]?.url).toBe('https://komoju.com/api/v1/payments/pay_1');
+    const cancel = fakeKomoju([{ body: { ...konbini('lawson'), status: 'cancelled' } }]);
+    expect(await cancel.rail.cancel('payment:pay_1')).toEqual({ kind: 'cancelled' });
+    expect(cancel.sent[0]?.url).toBe('https://komoju.com/api/v1/payments/pay_1/cancel');
+  });
+
+  test('each method but the card takes yen only, inside the limits of KOMOJU', () => {
+    expect(komojuRail.accepts('card', 'USD', 100)).toBe(true);
+    expect(komojuRail.accepts('konbini', 'USD', 1000)).toBe(false);
+    expect(komojuRail.accepts('konbini', 'JPY', 300_001)).toBe(false);
+    expect(komojuRail.accepts('paypay', 'JPY', 1_000_000)).toBe(true);
+    expect(komojuRail.fields('bank_transfer')).toContain('family_name_kana');
   });
 });

@@ -12,6 +12,7 @@ export const CARD_ATTEMPT: RailAttempt = {
   details: { email: 'buyer@example.com' },
   locale: 'ja',
   returnUrl: 'https://checkout.example.test/return',
+  offlineDays: 3,
   createdAtMs: NOW_MS,
 };
 

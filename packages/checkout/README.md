@@ -1,7 +1,7 @@
 # Seams Checkout
 
-`@seams/checkout` is a checkout for online shops. A shop accepts cards and Japanese payment
-methods through its own Stripe and KOMOJU accounts. Seams never holds the money, and no card
+`@seams/checkout` is a checkout for online shops. A shop accepts cards, konbini, bank transfer
+and PayPay through its own Stripe and KOMOJU accounts. Seams never holds the money, and no card
 number reaches a Seams server. The plan is
 [Refactor 250](../../docs/refactor-250-seams-checkout.md).
 

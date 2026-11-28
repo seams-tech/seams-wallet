@@ -35,6 +35,8 @@ export type ProjectConfig = {
   readonly routing: Readonly<Partial<Record<CheckoutMethod, string>>>;
   /** Where the merchant's server receives the order events. */
   readonly eventUrl: string | null;
+  /** How many days a konbini voucher or bank details stay payable: 1 to 60. The default is 3. */
+  readonly voucherDays?: number;
 };
 
 function isEventUrl(value: string): boolean {
@@ -53,8 +55,16 @@ export function parseProjectConfig(
   input: unknown,
   rails: ReadonlyMap<string, RailModule>,
 ): ProjectConfig {
-  if (!hasExactKeys(input, ['routing', 'eventUrl']) || !isPlainObject(input.routing)) {
+  if (!isPlainObject(input) || !isPlainObject(input.routing)) {
     throw new Error('A project configuration has a routing table and an eventUrl');
+  }
+  const { voucherDays, ...required } = input;
+  if (!hasExactKeys(required, ['routing', 'eventUrl'])) {
+    throw new Error('A project configuration has a routing table, an eventUrl and voucherDays');
+  }
+  const days = voucherDays === undefined ? undefined : Number(voucherDays);
+  if (days !== undefined && !(Number.isInteger(days) && days >= 1 && days <= 60)) {
+    throw new Error('voucherDays is a whole number from 1 to 60');
   }
   const routing: Partial<Record<CheckoutMethod, string>> = {};
   for (const [method, railId] of Object.entries(input.routing)) {
@@ -69,7 +79,7 @@ export function parseProjectConfig(
   if (eventUrl !== null && !(isString(eventUrl) && isEventUrl(eventUrl))) {
     throw new Error('The eventUrl is an https URL, or null');
   }
-  return { routing, eventUrl };
+  return { routing, eventUrl, ...(days === undefined ? {} : { voucherDays: days }) };
 }
 
 export function projectConfig(project: ProjectRow): ProjectConfig {

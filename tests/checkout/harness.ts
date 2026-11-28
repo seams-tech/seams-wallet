@@ -140,10 +140,14 @@ export async function openCheckout(options: CheckoutOptions = {}) {
     operator: <T>(method: string, path: string, body?: unknown) =>
       call<T>(method, path, { bearer: OPERATOR_KEY, body }),
     /** Makes the project with a routing table and connects an account for each rail in it. */
-    async setUp(routing: Record<string, string> = { card: 'fake' }, eventUrl: string | null = EVENT_URL) {
+    async setUp(
+      routing: Record<string, string> = { card: 'fake' },
+      eventUrl: string | null = EVENT_URL,
+      extra: Record<string, unknown> = {},
+    ) {
       const made = await call<{ eventSecret: string | null }>('PUT', `/checkout/projects/${PROJECT}`, {
         bearer: OPERATOR_KEY,
-        body: { routing, eventUrl },
+        body: { routing, eventUrl, ...extra },
       });
       for (const rail of new Set(Object.values(routing))) {
         await call('PUT', `/checkout/projects/${PROJECT}/rails/${rail}`, { bearer: OPERATOR_KEY, body: {} });
@@ -159,8 +163,9 @@ export async function openCheckout(options: CheckoutOptions = {}) {
     start: <T = CheckoutSession['attempt']>(clientToken: string, body: unknown = { method: 'card' }) =>
       call<T>('POST', '/checkout/attempts', { bearer: clientToken, headers: frameHeaders, body }),
     /** Sends the provider's webhook for a payment of the fake rail. */
-    async webhook(ref: string, rail = 'fake', railProvider = provider) {
-      const { body, signature } = await railProvider.webhook(ref);
+    async webhook(ref: string, rail = 'fake', railProvider = provider, funds?: number) {
+      const { body, signature } =
+        funds === undefined ? await railProvider.webhook(ref) : await railProvider.fundsWebhook(ref, funds);
       return call('POST', `/checkout/webhooks/${rail}/${PROJECT}`, {
         raw: body,
         headers: { 'fake-signature': signature },

@@ -1,8 +1,9 @@
 # Checkout shop example
 
-A small shop that takes a card payment with [Seams Checkout](../../packages/checkout/README.md).
+A small shop that takes cards, konbini, bank transfer and PayPay with [Seams Checkout](../../packages/checkout/README.md).
 The shop's server makes the order, the page opens the checkout in a dialog or in the page, and
-the server gets the result as a signed order event.
+the server gets the result as a signed order event. By default the card goes to Stripe and
+the Japanese methods go to KOMOJU: two providers in one page.
 
 ```bash
 pnpm -C examples/checkout-shop dev
@@ -26,6 +27,7 @@ the environment. Without keys, the page and the frame load, and a payment cannot
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` |
 | `KOMOJU_PUBLISHABLE_KEY`, `KOMOJU_SECRET_KEY`, `KOMOJU_WEBHOOK_SECRET` | The test keys and the webhook token |
 | `CARD_RAIL` | `stripe` (default) or `komoju`: the rail of the card method |
+| `JAPAN_RAIL` | `komoju` (default) or `stripe`: the rail of konbini, bank transfer and PayPay |
 
 Only a rail webhook marks an order as paid. The provider must reach the webhook URL that the
 script prints. For Stripe, the Stripe CLI forwards test webhooks to it:

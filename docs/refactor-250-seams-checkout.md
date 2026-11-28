@@ -1,7 +1,8 @@
 # Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
-Status: 2026-11-28. Slices 2 and 3 are built on `dev`: the checkout Worker, both card rails,
-the merchant's server client, the page SDK, the checkout frame and an example shop. Section 8 has the result of each slice and what each open slice waits
+Status: 2026-11-28. Slices 2 to 4 are built on `dev`: the checkout Worker, the Stripe and
+KOMOJU rails (cards, konbini, bank transfer, PayPay), the merchant's server client, the page
+SDK, the checkout frame and an example shop. Section 8 has the result of each slice and what each open slice waits
 for. The plan was revised on 2026-11-18 after a review of the architecture. The Slice 0
 unknowns have answers from public documentation (2026-11-18). With
 them, D1, D13 and D14 changed, and D2, D3, D5 and D8 got new facts. Tasks T1 to T19 finish
@@ -1239,6 +1240,48 @@ Each slice ships alone and keeps the invariants of Section 9.
   `pending_offline` state, deadlines, expiry and stock release, the cancel on a change of
   method and the unexpected payment. PayPay through both providers, so that a merchant can
   route it either way.
+
+  Built on 2026-11-28 on `dev`, not released or deployed. The parts:
+  - **Both rails take each method,** so a merchant routes konbini, bank transfer and PayPay
+    either way. The server confirms the payment: at Stripe with `confirm=true` on the
+    PaymentIntent, at KOMOJU with `POST /payments` and the secret key (U2). The browser gets a
+    `voucher`, `bank_details` or `redirect` start and needs no provider script.
+  - **Customer details.** A rail names the fields that its provider needs, and the frame draws
+    them: Stripe konbini and bank transfer need a name and an email address; KOMOJU konbini
+    needs the store and an email address; KOMOJU bank transfer needs the names, their
+    katakana, an email address and a phone number.
+  - **Limits.** Each of these methods takes yen only, inside the provider's limits
+    (`accepts`). A method that cannot take an order does not appear.
+  - **`pending_offline` and deadlines.** The project's `voucherDays` (1 to 60, default 3) sets
+    how long a voucher is payable. The attempt ends two hours after the provider's deadline,
+    because a store can take a voucher a short time after it. The order stays `open` until
+    then, and the merchant gets `order.pending` at the issue and `order.expired` at the end,
+    which releases the stock. A Stripe bank transfer has no deadline of its own, so it ends
+    15 minutes after the order's expiry.
+  - **A change of method** cancels the voucher or the wallet payment at the provider. Money
+    for an attempt that is not active is an unexpected payment.
+  - **Money that paid no payment.** A rail can report `unmatched_funds`. The Stripe rail makes
+    one customer for each bank transfer attempt, so Stripe's bank account names the attempt.
+    When `cash_balance.funds_available` comes, the rail reports the balance for that attempt:
+    a transfer after a cancel, or the rest of a transfer that was too large.
+  - **The frame.** Card fields open when the card is selected. Each other method starts only
+    when the customer selects the pay button, because a start issues a voucher. The voucher
+    and the bank details are Seams screens, with a link to the provider's page where one
+    exists. KOMOJU says not to show the 7-Eleven code, so that voucher is KOMOJU's page. A
+    wallet opens in a tab of its own from a link, and the frame waits for the rail event. The
+    return page in that tab tells the customer to go back to the shop.
+  - **The example shop** routes the card to Stripe and the three methods to KOMOJU by default:
+    two providers in one page.
+  - **Tests:** 132 cases in Chromium and WebKit. New: konbini issued then paid, konbini
+    expired, bank transfer, PayPay approve and cancel, PayPay on each rail, a mixed routing
+    order, a voucher paid after a card payment, a transfer of the wrong amount and a transfer
+    after a cancel.
+  - **Not built: the 7-Eleven barcode** (`GET /barcodes/{payment_id}`). The docs do not say
+    which payments have one.
+  - **Waits for the owner (T1, T6 to T8, T10):** each provider call of this slice in a test
+    account. Open facts: whether KOMOJU accepts these `POST /payments` bodies as documented,
+    which konbini chains send `confirmation_code`, what KOMOJU does when a customer pays after
+    a cancel, and where a Stripe transfer goes after a cancel.
 - **Slice 5: returning customers.** The identity interface, `signIn: 'offer'`, the JWKS check
   in the checkout Worker, order history, saved methods per provider and one-tap payment with
   `prove`. Needs the login token of Refactor 251 (its Slices 5 and 6).

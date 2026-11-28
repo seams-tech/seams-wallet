@@ -1,9 +1,10 @@
-import type { CheckoutMethod, CustomerField } from '../../packages/checkout/src/shared/methods';
+import type { CheckoutMethod, CustomerField, RailStart } from '../../packages/checkout/src/shared/methods';
 import type { AttemptState } from '../../packages/checkout/src/shared/orderState';
 import { hmacSha256Hex } from '../../packages/checkout/src/shared/signature';
 import {
   RailError,
   type RailAttempt,
+  type RailStarted,
   type RailCancel,
   type RailModule,
   type RailPaymentState,
@@ -18,6 +19,15 @@ type FakePayment = {
 };
 
 const WEBHOOK_SECRET = 'fake-webhook-secret';
+
+const DAY_MS = 24 * 60 * 60_000;
+/** The state of a payment right after its start: a voucher waits, a wallet asks for approval. */
+const START_STATES = {
+  card: 'created',
+  konbini: 'pending_offline',
+  bank_transfer: 'pending_offline',
+  paypay: 'requires_action',
+} as const;
 
 /**
  * A provider in memory. A test moves a payment as a customer or a provider does, and then sends
@@ -47,7 +57,7 @@ export class FakeProvider {
     const payment: FakePayment = {
       ref: `fp_${this.nextRef++}`,
       attempt,
-      state: 'created',
+      state: START_STATES[attempt.method],
       paidAmount: null,
       failure: null,
     };
@@ -91,6 +101,14 @@ export class FakeProvider {
     this.payments.get(ref)!.state = state;
   }
 
+  /** The signed webhook for money that paid no payment, such as a transfer after a cancel. */
+  async fundsWebhook(ref: string, amount: number): Promise<{ body: string; signature: string }> {
+    const attempt = this.payments.get(ref)!.attempt;
+    const funds = { attempt: attempt.id, ref: `funds_${ref}_${amount}`, amount, currency: attempt.currency };
+    const body = JSON.stringify({ funds });
+    return { body, signature: await hmacSha256Hex(WEBHOOK_SECRET, body) };
+  }
+
   /** The signed webhook for a payment, as the provider sends it. */
   async webhook(ref: string, secret = WEBHOOK_SECRET): Promise<{ body: string; signature: string }> {
     const body = JSON.stringify({ ref, attempt: this.payments.get(ref)?.attempt.id ?? null });
@@ -109,7 +127,9 @@ export function fakeRail(
   return {
     id,
     methods: new Set(methods),
-    fields: () => fields,
+    // As the real rails: each method but the card takes yen only.
+    accepts: (method, currency) => methods.includes(method) && (method === 'card' || currency === 'JPY'),
+    fields: (method) => (method === 'konbini' ? ['konbini_store', ...fields] : fields),
     parseAccount: () => ({
       public: { publishableKey: `${id}_pk` },
       secrets: { webhookSecret: WEBHOOK_SECRET },
@@ -120,29 +140,47 @@ export function fakeRail(
         async verify(webhook) {
           const expected = await hmacSha256Hex(account.secrets.webhookSecret ?? '', webhook.body);
           if (webhook.header('fake-signature') !== expected) return null;
-          const { ref, attempt } = JSON.parse(webhook.body) as { ref: string; attempt: string | null };
-          return { kind: 'payment', attemptId: attempt, ref };
+          const event = JSON.parse(webhook.body);
+          if (event.funds) {
+            const { attempt, ref, amount, currency } = event.funds;
+            return { kind: 'unmatched_funds', attemptId: attempt, ref, amount, currency };
+          }
+          return { kind: 'payment', attemptId: event.attempt, ref: event.ref };
         },
       },
-      async start(attempt) {
+      async start(attempt): Promise<RailStarted> {
         const payment = provider.start(attempt);
+        const publishableKey = account.public.publishableKey ?? '';
+        const deadlineMs = attempt.createdAtMs + attempt.offlineDays * DAY_MS;
+        const starts: Record<CheckoutMethod, RailStart> = {
+          card:
+            cardFields === 'stripe'
+              ? { kind: 'card_form', fields: 'stripe', publishableKey, clientSecret: `${payment.ref}_secret` }
+              : { kind: 'card_form', fields: 'komoju', publishableKey, sessionId: payment.ref },
+          konbini: {
+            kind: 'voucher',
+            deadlineMs,
+            instructionsUrl: `https://provider.example.test/voucher/${payment.ref}`,
+            codes: [{ stores: ['lawson', 'family_mart'], paymentCode: '123456', confirmationCode: '98765432101' }],
+          },
+          bank_transfer: {
+            kind: 'bank_details',
+            deadlineMs,
+            instructionsUrl: null,
+            bankName: 'Seams Bank',
+            branchName: 'Tokyo',
+            accountType: 'futsu',
+            accountNumber: '1234567',
+            accountHolder: 'SEAMS SHOP',
+          },
+          paypay: { kind: 'redirect', url: `https://provider.example.test/paypay/${payment.ref}` },
+        };
+        const offline = attempt.method === 'konbini' || attempt.method === 'bank_transfer';
         return {
           ref: payment.ref,
           payment: provider.read(payment.ref),
-          start:
-            cardFields === 'stripe'
-              ? {
-                  kind: 'card_form',
-                  fields: 'stripe',
-                  publishableKey: account.public.publishableKey ?? '',
-                  clientSecret: `${payment.ref}_secret`,
-                }
-              : {
-                  kind: 'card_form',
-                  fields: 'komoju',
-                  publishableKey: account.public.publishableKey ?? '',
-                  sessionId: payment.ref,
-                },
+          start: starts[attempt.method],
+          ...(offline ? { deadlineMs } : {}),
         };
       },
       read: async (ref) => provider.read(ref),

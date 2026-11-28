@@ -20,6 +20,8 @@ export type RailAttempt = {
   readonly locale: CheckoutLocale;
   /** The page of the checkout origin that the provider sends the customer back to. */
   readonly returnUrl: string;
+  /** How many days a voucher or bank details stay payable. */
+  readonly offlineDays: number;
   readonly createdAtMs: number;
 };
 
@@ -41,6 +43,8 @@ export type RailStarted = {
   readonly ref: RailPaymentRef;
   readonly payment: RailPaymentState;
   readonly start: RailStart;
+  /** When the provider stops taking the money of a voucher or bank details. */
+  readonly deadlineMs?: number;
 };
 
 export type RailCancel =
@@ -53,6 +57,15 @@ export type RailCancel =
 /** What a verified webhook says. The Worker then reads the payment before it changes a state. */
 export type RailEvent =
   | { readonly kind: 'payment'; readonly attemptId: string | null; readonly ref: RailPaymentRef | null }
+  /** Money at the provider that paid no payment, such as a bank transfer after a cancel. */
+  | {
+      readonly kind: 'unmatched_funds';
+      readonly attemptId: string;
+      /** The provider's name for this money. One name is recorded once. */
+      readonly ref: string;
+      readonly amount: MinorUnits;
+      readonly currency: string;
+    }
   | { readonly kind: 'ignored' };
 
 export type RailWebhook = {
@@ -93,12 +106,32 @@ export type RailContext = {
 export type RailModule = {
   readonly id: string;
   readonly methods: ReadonlySet<CheckoutMethod>;
+  /** True when the rail takes this method for an order of this currency and amount. */
+  accepts(method: CheckoutMethod, currency: Currency, amount: MinorUnits): boolean;
   /** The customer details that the provider needs for a method. */
   fields(method: CheckoutMethod): readonly CustomerField[];
   /** Checks the keys that a merchant gives, and refuses a key with more access than needed. */
   parseAccount(input: unknown): RailAccount;
   connect(account: RailAccount, context: RailContext): PaymentRail;
 };
+
+type YenLimits = Readonly<Partial<Record<CheckoutMethod, readonly [min: number, max: number]>>>;
+
+/**
+ * True when `method` is one of `methods` and the order is inside the provider's limits. A
+ * method with limits takes yen only.
+ */
+export function acceptsOrder(
+  methods: ReadonlySet<CheckoutMethod>,
+  yenLimits: YenLimits,
+  method: CheckoutMethod,
+  currency: Currency,
+  amount: MinorUnits,
+): boolean {
+  const limits = yenLimits[method];
+  if (!limits) return methods.has(method);
+  return currency === 'JPY' && amount >= limits[0] && amount <= limits[1];
+}
 
 type RailErrorKind = 'refused' | 'unavailable';
 

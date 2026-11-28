@@ -10,7 +10,8 @@ export type OrderEvent = {
   /** The order at the time of the event. */
   readonly order: CheckoutOrder;
 } & (
-  | { readonly type: 'order.paid' | 'order.expired' | 'order.cancelled' }
+  /** `order.pending`: a voucher or bank details were issued, and the order waits for the money. */
+  | { readonly type: 'order.paid' | 'order.pending' | 'order.expired' | 'order.cancelled' }
   | {
       readonly type: 'order.unexpected_payment';
       /** Money that the order did not wait for. The merchant refunds it or accepts it. */

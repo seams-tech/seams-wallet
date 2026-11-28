@@ -1,6 +1,13 @@
 import { acceptFrameConnection } from '../../../frame-kit/src/index';
 import type { CheckoutSession } from '../shared/api';
-import type { CheckoutMethod, CustomerDetails, RailStart } from '../shared/methods';
+import type { Variant } from '@shared/utils/variant';
+import {
+  KONBINI_STORES,
+  type CheckoutMethod,
+  type CustomerDetails,
+  type CustomerField,
+  type RailStart,
+} from '../shared/methods';
 import { formatAmount } from '../shared/money';
 import {
   CHECKOUT_PROTOCOL,
@@ -17,6 +24,19 @@ import { textsFor, type FrameTexts } from './texts';
 const POLL_MS = 1500;
 /** How long the frame waits for the rail's event after the provider took the payment. */
 const CONFIRM_POLLS = 40;
+/** A wallet app can take some minutes. */
+const REDIRECT_POLLS = 240;
+
+const INPUT_TYPES: Readonly<Partial<Record<CustomerField, string>>> = { email: 'email', phone: 'tel' };
+const AUTOCOMPLETE: Readonly<Partial<Record<CustomerField, AutoFill>>> = {
+  email: 'email',
+  full_name: 'name',
+  family_name: 'family-name',
+  given_name: 'given-name',
+  phone: 'tel',
+};
+
+type OfflineStart = Exclude<RailStart, Variant<RailStart, 'kind', 'card_form'>>;
 
 type Child = Node | string | null;
 
@@ -128,7 +148,9 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
     showScreen(spinner(), texts.confirming, null);
     const poll = async (left: number): Promise<void> => {
       const session = await api.session().catch(() => null);
-      if (session && (session.order.state !== 'open' || !session.attempt)) return route(session, true);
+      // The attempt ended and the order is open: the payment was refused.
+      if (session?.order.state === 'open' && !session.attempt) return showMethods(session, true);
+      if (session && session.order.state !== 'open') return route(session, true);
       if (session?.attempt?.state === 'created' && session.attempt.failure) return route(session, true);
       if (left <= 0) {
         report('pending');
@@ -137,6 +159,63 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
       pollTimer = setTimeout(() => void poll(left - 1), POLL_MS);
     };
     pollTimer = setTimeout(() => void poll(polls), POLL_MS);
+  }
+
+  const fact = (label: string, value: string | null): HTMLElement | null =>
+    value ? el('div', {}, el('dt', { textContent: label }), el('dd', { textContent: value })) : null;
+  const link = (url: string | null, text: string, className: string, onclick?: () => void): HTMLElement | null =>
+    url?.startsWith('https://')
+      ? el('a', { className, href: url, target: '_blank', rel: 'noopener', textContent: text, onclick: onclick ?? null })
+      : null;
+  const deadline = (deadlineMs: number | null): HTMLElement | null =>
+    deadlineMs === null
+      ? null
+      : el('p', {
+          textContent: texts.payBy(
+            new Intl.DateTimeFormat(open.locale, { dateStyle: 'long', timeStyle: 'short' }).format(deadlineMs),
+          ),
+        });
+
+  /** Shows the method list again. A start of another method cancels the payment on screen. */
+  async function chooseAgain(): Promise<void> {
+    try {
+      showMethods(await api.session(), false);
+    } catch {
+      showClosed('unavailable');
+    }
+  }
+
+  /** The next step of a payment without card fields: a voucher, bank details or a wallet app. */
+  function showNextStep(method: CheckoutMethod, start: OfflineStart, amount: string): void {
+    const other = el('button', { className: 'co-link', type: 'button', textContent: texts.otherMethod, onclick: () => void chooseAgain() });
+    if (start.kind === 'redirect') {
+      report('open');
+      const name = texts.methods[method];
+      const openLink = link(start.url, texts.redirectOpen(name), 'co-pay', () => showConfirming(REDIRECT_POLLS));
+      showScreen(null, texts.redirectTitle(name), texts.redirectBody, el('div', { className: 'co-panel' }, openLink, other));
+      return;
+    }
+    report('pending');
+    const facts =
+      start.kind === 'voucher'
+        ? start.codes.flatMap((code) => [
+            fact(texts.fields.konbini_store, code.stores.map((store) => texts.stores[store]).join(', ')),
+            fact(texts.paymentCode, code.paymentCode),
+            fact(texts.confirmationCode, code.confirmationCode),
+          ])
+        : (Object.keys(texts.bank) as (keyof FrameTexts['bank'])[]).map((key) => fact(texts.bank[key], start[key]));
+    show(
+      el(
+        'section',
+        { className: 'co-screen' },
+        el('h2', { textContent: start.kind === 'voucher' ? texts.voucherTitle : texts.bankTitle }),
+        deadline(start.deadlineMs),
+        el('dl', { className: 'co-facts' }, fact(texts.total, amount), ...facts),
+        link(start.instructionsUrl, texts.instructions, 'co-link'),
+        doneButton(),
+        other,
+      ),
+    );
   }
 
   function showMethods(session: CheckoutSession, refused: boolean): void {
@@ -203,6 +282,7 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
 
     async function mount(method: CheckoutMethod, start: RailStart | null): Promise<void> {
       if (!start) throw new Error('The attempt has no next step');
+      if (start.kind !== 'card_form') return showNextStep(method, start, amount);
       let ready = false;
       const mounted = await mountCardFields(start, {
         container: provider,
@@ -251,21 +331,31 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
       const option = ordered.find((candidate) => candidate.method === method)!;
       const missing = option.fields.filter((field) => !details[field]);
       if (resume) return mount(method, resume).catch(() => startMethod(method));
-      if (missing.length === 0) return startMethod(method);
+      // Card fields open at once. Each other method starts when the customer selects the
+      // button, because a start issues a voucher or opens a wallet payment.
+      if (missing.length === 0 && method === 'card') return startMethod(method);
       step = 'details';
-      button.textContent = texts.continue;
+      button.textContent = method === 'card' ? texts.continue : texts.pay(amount);
       button.disabled = false;
       inputs.replaceChildren(
         ...missing.map((field) => {
-          const input = el('input', {
-            type: field === 'email' ? 'email' : 'text',
-            name: field,
-            required: true,
-            autocomplete: field,
-            oninput: () => {
-              details[field] = input.value.trim();
-            },
-          });
+          const input =
+            field === 'konbini_store'
+              ? el(
+                  'select',
+                  { name: field, required: true },
+                  el('option', { value: '', textContent: '' }),
+                  ...KONBINI_STORES.map((store) => el('option', { value: store, textContent: texts.stores[store] })),
+                )
+              : el('input', {
+                  type: INPUT_TYPES[field] ?? 'text',
+                  name: field,
+                  required: true,
+                  autocomplete: AUTOCOMPLETE[field] ?? 'off',
+                });
+          input.oninput = () => {
+            details[field] = input.value.trim();
+          };
           return el('label', { className: 'co-field' }, el('span', { textContent: texts.fields[field] }), input);
         }),
       );
@@ -299,10 +389,13 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
     };
 
     const active = session.attempt;
-    const first = active && rows.has(active.method) ? active.method : ordered.length === 1 ? ordered[0]!.method : null;
+    // Card fields of an open attempt come back after a reload. A voucher does not: the customer
+    // came here to choose again.
+    const resume = active?.start?.kind === 'card_form' && rows.has(active.method) ? active : null;
+    const first = resume?.method ?? (ordered.length === 1 ? ordered[0]!.method : null);
     if (first) {
       rows.get(first)!.querySelector('input')!.checked = true;
-      void select(first, active?.method === first ? active.start : null);
+      void select(first, resume?.start ?? null);
     }
   }
 
@@ -312,8 +405,15 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
     if (state === 'expired' || state === 'cancelled') return showClosed(state);
     if (state !== 'open') return showPaid();
     const attempt = session.attempt;
+    const start = attempt?.start;
+    if (attempt && start && start.kind !== 'card_form' && !(returned && start.kind === 'redirect')) {
+      const { order } = session;
+      return showNextStep(attempt.method, start, formatAmount(order.amount, order.currency, open.locale));
+    }
     const inFlight = attempt !== null && attempt.state !== 'created';
-    if (inFlight || (returned && attempt !== null && !attempt.failure)) return showConfirming();
+    if (inFlight || (returned && attempt !== null && !attempt.failure)) {
+      return showConfirming(start?.kind === 'redirect' ? REDIRECT_POLLS : CONFIRM_POLLS);
+    }
     showMethods(session, returned && Boolean(attempt?.failure));
   }
 
@@ -331,6 +431,12 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
 const sheet = new CSSStyleSheet();
 sheet.replaceSync(FRAME_CSS);
 document.adoptedStyleSheets = [sheet];
+
+if (window.parent === window) {
+  // A provider sent the customer back in a tab of its own. The checkout is in the shop's tab.
+  const texts = [textsFor('ja').returned, textsFor('en').returned];
+  document.body.append(el('main', { className: 'co' }, ...texts.map((text) => el('p', { textContent: text }))));
+}
 
 acceptFrameConnection({
   protocol: CHECKOUT_PROTOCOL,

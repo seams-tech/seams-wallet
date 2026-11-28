@@ -6,6 +6,7 @@
 //   STRIPE_PUBLISHABLE_KEY, STRIPE_RESTRICTED_KEY, STRIPE_WEBHOOK_SECRET
 //   KOMOJU_PUBLISHABLE_KEY, KOMOJU_SECRET_KEY, KOMOJU_WEBHOOK_SECRET
 //   CARD_RAIL=stripe|komoju   the rail of the card method (default: stripe)
+//   JAPAN_RAIL=komoju|stripe  the rail of konbini, bank transfer and PayPay (default: komoju)
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { randomBytes } from 'node:crypto';
@@ -133,8 +134,10 @@ const accounts = {
   },
 };
 const cardRail = env.CARD_RAIL === 'komoju' ? 'komoju' : 'stripe';
+// One page, two providers: the card goes to one rail and the Japanese methods to the other.
+const japanRail = env.JAPAN_RAIL === 'stripe' ? 'stripe' : 'komoju';
 const { eventSecret } = await operator(`/checkout/projects/${PROJECT}`, {
-  routing: { card: cardRail },
+  routing: { card: cardRail, konbini: japanRail, bank_transfer: japanRail, paypay: japanRail },
   eventUrl: `${SHOP_ORIGIN}/seams-events`,
 });
 for (const [rail, account] of Object.entries(accounts)) {
@@ -181,6 +184,7 @@ createServer(async (request, response) => {
 console.log(`Shop:            ${SHOP_ORIGIN}`);
 console.log(`Checkout origin: ${CHECKOUT_ORIGIN}`);
 console.log(`Card rail:       ${cardRail}`);
+console.log(`Konbini, bank transfer, PayPay: ${japanRail}`);
 for (const rail of ['stripe', 'komoju']) {
   const state = accounts[rail] ? `webhook URL ${CHECKOUT_ORIGIN}/checkout/webhooks/${rail}/${PROJECT}` : 'no keys in the environment';
   console.log(`  ${rail}: ${state}`);

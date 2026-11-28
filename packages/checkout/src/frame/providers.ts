@@ -12,6 +12,8 @@ export const PROVIDER_SCRIPTS = {
   komoju: 'https://multipay.komoju.com/fields.js',
 } as const;
 
+type CardForm = Variant<RailStart, 'kind', 'card_form'>;
+
 export type CardSubmit =
   /** The provider took the card. The rail's event decides the payment. */
   | { readonly kind: 'submitted' }
@@ -102,7 +104,7 @@ export function komojuTheme(theme: CheckoutTheme): string {
 }
 
 async function mountStripe(
-  start: Variant<RailStart, 'fields', 'stripe'>,
+  start: Variant<CardForm, 'fields', 'stripe'>,
   options: CardFieldsOptions,
 ): Promise<CardFields> {
   await loadScript(PROVIDER_SCRIPTS.stripe, false);
@@ -138,7 +140,7 @@ async function mountStripe(
 }
 
 async function mountKomoju(
-  start: Variant<RailStart, 'fields', 'komoju'>,
+  start: Variant<CardForm, 'fields', 'komoju'>,
   options: CardFieldsOptions,
 ): Promise<CardFields> {
   await loadScript(PROVIDER_SCRIPTS.komoju, true);
@@ -177,7 +179,7 @@ async function mountKomoju(
 }
 
 export function mountCardFields(
-  start: Variant<RailStart, 'kind', 'card_form'>,
+  start: CardForm,
   options: CardFieldsOptions,
 ): Promise<CardFields> {
   return start.fields === 'stripe' ? mountStripe(start, options) : mountKomoju(start, options);

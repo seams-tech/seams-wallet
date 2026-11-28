@@ -21,6 +21,7 @@ import { RailError, type PaymentRail, type RailAttempt, type RailPaymentState } 
 import {
   changeAttempt,
   changeOrderState,
+  insertEventStatement,
   getOrder,
   getProject,
   insertAttempt,
@@ -33,6 +34,9 @@ import {
 
 /** A challenge or a redirect in flight gets this long after the order's expiry. */
 const IN_FLIGHT_GRACE_MS = 15 * 60_000;
+/** A store can take a voucher for a short time after its deadline. */
+const OFFLINE_GRACE_MS = 2 * 60 * 60_000;
+const DEFAULT_VOUCHER_DAYS = 3;
 
 /** A request that the checkout refuses, with the code that the caller gets. */
 export class CheckoutError extends Error {
@@ -171,6 +175,51 @@ export async function settleOrder(context: CheckoutContext, orderId: string): Pr
   return settled;
 }
 
+type Money = { readonly amount: number; readonly currency: string };
+
+/** Records money that the order did not wait for. It never changes the order state alone. */
+async function recordUnexpected(
+  context: CheckoutContext,
+  loaded: LoadedOrder,
+  attempt: AttemptRow,
+  railRef: string,
+  money: Money,
+  reason: 'attempt_not_active' | 'wrong_amount',
+): Promise<void> {
+  const marked = { order: { ...loaded.order, needs_review: 1 }, attempts: loaded.attempts };
+  const payment = { rail: attempt.rail_id, ...money, reason };
+  await recordUnexpectedPayment(
+    context.db,
+    { paymentId: secureRandomId('pay', 16), attempt, railRef, ...money, reason },
+    eventOf(context, marked, 'order.unexpected_payment', `unexpected:${attempt.rail_id}:${railRef}`, { payment }),
+  );
+}
+
+/**
+ * Records money at the provider that paid no payment, for example a bank transfer that came
+ * after its attempt was cancelled, or the rest of a transfer that was too large.
+ */
+export async function recordUnmatchedFunds(
+  context: CheckoutContext,
+  attempt: AttemptRow,
+  railRef: string,
+  money: Money,
+): Promise<void> {
+  const loaded = await loadOrder(context, attempt.order_id);
+  if (!loaded) return;
+  const reason = attempt.state === 'succeeded' || isActiveAttempt(attempt.state) ? 'wrong_amount' : 'attempt_not_active';
+  await recordUnexpected(context, loaded, attempt, railRef, money, reason);
+}
+
+/** Tells the merchant that the order waits for a store payment or a bank transfer. */
+async function addPendingEvent(context: CheckoutContext, orderId: string, attemptId: string): Promise<void> {
+  const loaded = await loadOrder(context, orderId);
+  if (!loaded) return;
+  await context.db.batch([
+    insertEventStatement(context.db, eventOf(context, loaded, 'order.pending', `pending:${attemptId}`)),
+  ]);
+}
+
 /**
  * Applies the state that a rail reports for the payment of an attempt. Only this function moves
  * an attempt to `succeeded`, and its callers give it only a state from a rail event.
@@ -192,29 +241,8 @@ export async function applyRailPayment(
     if (attempt.state === 'succeeded') return;
     const { paid } = payment;
     const exact = paid.amount === order.amount && paid.currency === order.currency;
-    const expected = exact && isActiveAttempt(attempt.state);
-    if (!expected) {
-      const reason = exact ? 'attempt_not_active' : 'wrong_amount';
-      const unexpected = {
-        paymentId: secureRandomId('pay', 16),
-        attempt,
-        railRef,
-        amount: paid.amount,
-        currency: paid.currency,
-        reason,
-      } as const;
-      const cause = `unexpected:${attempt.rail_id}:${railRef}`;
-      await recordUnexpectedPayment(
-        db,
-        unexpected,
-        eventOf(
-          context,
-          { order: { ...order, needs_review: 1 }, attempts: loaded.attempts },
-          'order.unexpected_payment',
-          cause,
-          { payment: { rail: attempt.rail_id, amount: paid.amount, currency: paid.currency, reason } },
-        ),
-      );
+    if (!exact || !isActiveAttempt(attempt.state)) {
+      await recordUnexpected(context, loaded, attempt, railRef, paid, exact ? 'attempt_not_active' : 'wrong_amount');
       if (isActiveAttempt(attempt.state)) {
         const wrongAmount = JSON.stringify({ code: 'wrong_amount', message: 'The amount paid is not the order amount' });
         await changeAttempt(db, attempt.attempt_id, attempt.state, { state: 'failed', failureJson: wrongAmount }, nowMs);
@@ -226,6 +254,7 @@ export async function applyRailPayment(
 
   if (canMoveAttempt(attempt.state, payment.state)) {
     await changeAttempt(db, attempt.attempt_id, attempt.state, { state: payment.state, failureJson }, nowMs);
+    if (payment.state === 'pending_offline') await addPendingEvent(context, order.order_id, attempt.attempt_id);
   } else if (attempt.state === payment.state && failureJson !== attempt.failure_json) {
     await changeAttempt(db, attempt.attempt_id, attempt.state, { state: attempt.state, failureJson }, nowMs);
   }
@@ -276,8 +305,9 @@ export async function startAttempt(
     throw new CheckoutError('order_not_open', `The order is ${order.state}`);
   }
   const project = await getProject(context.db, order.project_id);
-  const railId = project ? projectConfig(project).routing[input.method] : undefined;
-  if (!railId || !context.rails.has(railId)) {
+  const config = project ? projectConfig(project) : null;
+  const railId = config?.routing[input.method];
+  if (!railId || !context.rails.get(railId)?.accepts(input.method, order.currency, order.amount)) {
     throw new CheckoutError('method_not_available', `The method ${input.method} has no rail`);
   }
   const rail = await requireRail(context, order.project_id, railId);
@@ -325,6 +355,7 @@ export async function startAttempt(
     details,
     locale: input.locale ?? 'en',
     returnUrl: `${context.checkoutOrigin}/return`,
+    offlineDays: config?.voucherDays ?? DEFAULT_VOUCHER_DAYS,
     createdAtMs: nowMs,
   };
   try {
@@ -333,11 +364,16 @@ export async function startAttempt(
       state: started.payment.state,
       railRef: started.ref,
       startJson: JSON.stringify(started.start),
+      // A voucher stays payable for some time after its deadline, at the store's register.
+      ...(started.deadlineMs ? { deadlineMs: started.deadlineMs + OFFLINE_GRACE_MS } : {}),
     };
     if (!(await changeAttempt(context.db, attempt.attempt_id, 'created', change, context.now()))) {
       // The attempt ended while the rail call ran. Its provider payment must not stay open.
       await rail.cancel(started.ref);
       throw new CheckoutError('order_not_open', 'The payment was cancelled while it started');
+    }
+    if (started.payment.state === 'pending_offline') {
+      await addPendingEvent(context, order.order_id, attempt.attempt_id);
     }
     return { ...attemptView({ ...attempt, state: started.payment.state }), start: started.start };
   } catch (error) {
@@ -361,11 +397,12 @@ export async function readSession(context: CheckoutContext, orderId: string): Pr
   const connected = new Set(open ? await listRailAccountIds(context.db, order.project_id) : []);
   const routing = project ? projectConfig(project).routing : {};
   const methods = Object.entries(routing)
-    .filter(([, railId]) => context.rails.has(railId) && connected.has(railId))
-    .map(([method, railId]) => {
-      const option = method as keyof typeof routing;
-      return { method: option, fields: railModule(context, railId).fields(option) };
-    });
+    .map(([method, railId]) => ({ method: method as keyof typeof routing, railId }))
+    .filter(
+      ({ method, railId }) =>
+        connected.has(railId) && context.rails.get(railId)?.accepts(method, order.currency, order.amount),
+    )
+    .map(({ method, railId }) => ({ method, fields: railModule(context, railId).fields(method) }));
   const active = attempts.find((attempt) => isActiveAttempt(attempt.state));
   return {
     order: {
