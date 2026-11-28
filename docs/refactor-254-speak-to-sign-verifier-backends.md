@@ -753,6 +753,10 @@ The pages hold no gate numbers.
   - The browser parts that Slice 4 did not check: the WASM load from `sdk/workers/`, the passkey
     unlock of an enrollment and a call through a real `SAYSO` binding.
   - The template delete: SaySo `d6ccbea` serves it, and no Worker runs that commit yet.
+  - The second transcription call (the hedge of G3, SaySo `b4481dc`). The pages say that SaySo
+    can send a recording to Workers AI a second time, with no time and no gate number. Only the
+    `staging-testnet` Worker runs it, the SaySo `main` on GitHub does not hold it yet, and Q17
+    waits for the owner. If the owner drops the hedge, delete that line.
 
 For Slice 6:
 

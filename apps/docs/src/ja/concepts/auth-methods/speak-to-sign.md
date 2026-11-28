@@ -333,6 +333,7 @@ Walletは、1つの流れで最大1回だけ、同じ流れで録音した音声
 
 - Walletは各録音をWAVとしてSeamsのサーバーに送り、サーバーはレーンのSaySo Workerに渡します。
 - SaySoは、文字起こしのためにCloudflare Workers AIのWhisper large-v3-turboに、声の確認のために話者のコンテナー(Cloudflare ContainerのReDimNet B1)に録音を送ります。
+- 最初の文字起こしが遅い場合または失敗した場合、SaySoは同じ録音をWorkers AIにもう一度送ることがあります。最初の答えを使います。
 - これらのサービスは、運用者のCloudflareアカウントで動作します。音声がCloudflareの外のサービスに送られることはありません。
 
 SaySoは録音も文字起こしも保存しません。所有者ごとに次のものを保存します。

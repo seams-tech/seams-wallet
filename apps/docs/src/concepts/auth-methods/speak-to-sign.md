@@ -529,6 +529,8 @@ browser:
 - SaySo sends the recording to Whisper large-v3-turbo on Cloudflare Workers AI
   for the transcript, and to its speaker container (ReDimNet B1 in a
   Cloudflare Container) for the voice check.
+- If the first transcription is slow or fails, SaySo can send the same
+  recording to Workers AI a second time. It uses the first answer.
 - These services run in the operator's Cloudflare account. The audio goes to
   no service outside Cloudflare.
 
