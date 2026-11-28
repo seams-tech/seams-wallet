@@ -12,6 +12,8 @@ wallet file.
 
 | Folder | Runs in | Published as |
 | --- | --- | --- |
+| `src/client` | The merchant's page | `@seams/checkout/client` |
+| `src/frame` | The checkout origin, in a frame | Not a path. The services package builds it |
 | `src/server` | The merchant's backend | `@seams/checkout/server` |
 | `src/worker` | The checkout Worker, with its own D1 database | Not a path. The services package builds it |
 | `src/shared` | Each of the above | Bundled |
@@ -40,6 +42,33 @@ if (event?.type === 'order.paid') {
 ```
 
 The browser result is a hint. Only a checked order event says that an order is paid.
+
+## The merchant's page
+
+```ts
+import { createCheckout } from '@seams/checkout/client';
+
+const checkout = createCheckout({ checkoutOrigin, publishableKey });
+const result = await checkout.open({
+  clientToken: order.clientToken,
+  layout: 'list', // 'list' | 'accordion' | 'tabs'
+  theme: { accent: '#2b7a52', radius: 12, buttonHeight: 48 },
+  locale: 'ja',
+});
+// result.kind: 'paid' | 'pending' | 'cancelled' | 'failed'
+```
+
+`checkout.open` shows the checkout in the page's stage dialog. `checkout.mount(element, options)`
+puts it into an element of the page. A guest pays with an email address only.
+
+## The checkout frame
+
+The frame is a static document of the checkout origin: `CHECKOUT_FRAME_HTML` and one script,
+built from `src/frame/main.ts`. The same document answers at `/return`, where a provider sends
+the customer back. `checkoutFrameCsp` in `src/frame/document.ts` gives its
+Content-Security-Policy. Scripts come only from the checkout origin, Stripe.js and KOMOJU
+Fields, and each provider script loads only when a method needs it. The frame's own code never
+reads a card number: the provider's fields hold it.
 
 ## The checkout Worker
 

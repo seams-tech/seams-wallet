@@ -7,13 +7,13 @@
     "./package.json": "./package.json",
     "./client": {
       "types": "./dist/types/checkout/src/client/index.d.ts",
-      "import": "./dist/esm/client/index.js",
-      "default": "./dist/esm/client/index.js"
+      "import": "./dist/esm/checkout/src/client/index.js",
+      "default": "./dist/esm/checkout/src/client/index.js"
     },
     "./server": {
       "types": "./dist/types/checkout/src/server/index.d.ts",
-      "import": "./dist/esm/server/index.js",
-      "default": "./dist/esm/server/index.js"
+      "import": "./dist/esm/checkout/src/server/index.js",
+      "default": "./dist/esm/checkout/src/server/index.js"
     }
   },
   "typesVersions": {

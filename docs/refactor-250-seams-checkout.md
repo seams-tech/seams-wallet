@@ -1,7 +1,7 @@
 # Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
-Status: 2026-11-28. Slice 2 is built on `dev`: the checkout Worker, both card rails and the
-merchant's server client. Section 8 has the result of each slice and what each open slice waits
+Status: 2026-11-28. Slices 2 and 3 are built on `dev`: the checkout Worker, both card rails,
+the merchant's server client, the page SDK, the checkout frame and an example shop. Section 8 has the result of each slice and what each open slice waits
 for. The plan was revised on 2026-11-18 after a review of the architecture. The Slice 0
 unknowns have answers from public documentation (2026-11-18). With
 them, D1, D13 and D14 changed, and D2, D3, D5 and D8 got new facts. Tasks T1 to T19 finish
@@ -830,7 +830,6 @@ const auth = createSeamsAuth({ accountOrigin, publishableKey });
 const checkout = createCheckout({ identity: auth, checkoutOrigin, publishableKey });
 const result = await checkout.open({
   clientToken: order.clientToken,
-  presentation: 'modal',            // 'modal' | 'inline' | 'headless'
   layout: 'list',                   // 'list' | 'accordion' | 'tabs'
   methods: ['card', 'paypay', 'konbini'], // order and subset, optional
   signIn: 'offer',                  // 'offer' | 'off'. A guest can always pay (D9)
@@ -1188,6 +1187,54 @@ Each slice ships alone and keeps the invariants of Section 9.
   its CSP, `checkout.open` in `modal` and `inline`, the Seams method list, the Stripe Payment
   Element (card only), KOMOJU Fields, the theme mapping, 3-D Secure and the receipt. A new
   example shop in `examples/` shows both providers in one page.
+
+  Built on 2026-11-28 on `dev`, not released or deployed. The parts:
+  - **The page SDK.** `@seams/checkout/client`: `createCheckout({ checkoutOrigin,
+    publishableKey })`, `checkout.open(options)` for the dialog and `checkout.mount(element,
+    options)` for the page. The function says the presentation, so the options have no
+    `presentation` field. `open` settles when the dialog closes. `mount` settles when the
+    payment is complete or pending, or when the order cannot be paid.
+  - **The frame.** `src/frame`: a static document and one script. It reads the order with the
+    client token, draws the Seams method list in the layouts `list`, `accordion` and `tabs`,
+    asks a guest for the email address, mounts the provider's card fields, waits for the rail
+    event and shows the receipt. English and Japanese. The frame's styles are a constructed
+    stylesheet.
+  - **The protocol** between the page and the frame is `seams-checkout` version 1, over the
+    frame kit's port. The frame loads a new document when a provider sends the customer back to
+    `/return`. The SDK connects again and sends the same checkout.
+  - **Who can embed the frame.** The frame gives the Worker the origin of the page that embeds
+    it. The Worker checks it against the project of the publishable key. The
+    `frame-ancestors` directive of the document's policy names the same origins.
+  - **The policy.** `checkoutFrameCsp`: scripts only from the checkout origin, `js.stripe.com`
+    and `multipay.komoju.com`. `style-src` has `'unsafe-inline'`, because KOMOJU's script adds
+    a style element to the document.
+  - **Stripe.** The Payment Element with cards only (D5), from
+    `https://js.stripe.com/endive/stripe.js`. 3-D Secure opens in Stripe's own frame
+    (`redirect: 'if_required'`).
+  - **KOMOJU.** `<komoju-fields>` in session mode. Its pay button is always on (U3). After a
+    success, KOMOJU sends the frame to `/return`.
+  - **The theme.** One object: `accent`, `radius`, `buttonHeight`, `fontFamily`. It becomes
+    CSS variables of the frame, a Stripe `appearance` object and a KOMOJU theme. A value of
+    another form is dropped. The checkout loads no font file. KOMOJU Fields have variables for
+    colours only (read from `multipay.komoju.com/static/shared.css` on 2026-11-28); the radius
+    and the font are overrides of KOMOJU's own rules. The fields take the theme as a
+    stylesheet URL, and the frame gives it as a `data:` URL, so the checkout origin serves no
+    theme file.
+  - **The example shop:** `examples/checkout-shop`. `pnpm -C examples/checkout-shop dev` runs
+    the shop and the checkout origin on this computer, with the merchant's test keys from the
+    environment. With only cards, one project routes the card to one provider (`CARD_RAIL`).
+    Slice 4 adds the methods that put both providers into one page.
+  - **Tests:** 24 browser cases in `tests/checkout`, in Chromium and WebKit (Firefox runs in
+    CI). They run the real frame, with its real policy, against the Worker and a fake Stripe.js
+    and fake KOMOJU Fields. The policy test fails when the document allows another script host.
+  - **Checked by hand on 2026-11-28:** the example shop in a browser, without provider keys.
+    The dialog opens, the frame reads the order under its policy and shows that no method is
+    available.
+  - **Not checked (waits for T1):** the real Stripe.js and the real KOMOJU Fields in the frame,
+    under the policy. KOMOJU's 3-D Secure dialog host is not documented, so `frame-src` can
+    need one more host.
+  - **Waits for Refactor 251 (`packages/host`):** the build of `checkout-service/index.html`
+    with the frame script, and the response header with the policy for the project's origins.
 - **Slice 4: konbini, bank transfer and PayPay.** The voucher and bank screens, the
   `pending_offline` state, deadlines, expiry and stock release, the cancel on a change of
   method and the unexpected payment. PayPay through both providers, so that a merchant can

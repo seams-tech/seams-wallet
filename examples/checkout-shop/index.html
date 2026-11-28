@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Baumkuchen shop: Seams Checkout example</title>
+    <link rel="stylesheet" href="/shop.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Baumkuchen shop</h1>
+      <ul class="cart">
+        <li><span>Plain baumkuchen</span><span>¥1,800</span></li>
+        <li><span>Matcha baumkuchen</span><span>¥2,200</span></li>
+        <li><span>Shipping</span><span>¥600</span></li>
+        <li class="total"><span>Total</span><span>¥4,600</span></li>
+      </ul>
+      <div class="controls">
+        <label>Layout
+          <select id="layout">
+            <option value="list">List</option>
+            <option value="accordion">Accordion</option>
+            <option value="tabs">Tabs</option>
+          </select>
+        </label>
+        <label>Language
+          <select id="locale">
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+          </select>
+        </label>
+      </div>
+      <div class="controls">
+        <button id="pay-modal" type="button">Pay in a dialog</button>
+        <button id="pay-inline" type="button">Pay in the page</button>
+      </div>
+      <p id="result" role="status"></p>
+      <div id="inline"></div>
+    </main>
+    <script type="module" src="/shop.js"></script>
+  </body>
+</html>

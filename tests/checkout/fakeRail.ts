@@ -104,6 +104,7 @@ export function fakeRail(
   id = 'fake',
   methods: readonly CheckoutMethod[] = ['card'],
   fields: readonly CustomerField[] = [],
+  cardFields: 'stripe' | 'komoju' = 'stripe',
 ): RailModule {
   return {
     id,
@@ -128,12 +129,20 @@ export function fakeRail(
         return {
           ref: payment.ref,
           payment: provider.read(payment.ref),
-          start: {
-            kind: 'card_form',
-            fields: 'stripe',
-            publishableKey: account.public.publishableKey ?? '',
-            clientSecret: `${payment.ref}_secret`,
-          },
+          start:
+            cardFields === 'stripe'
+              ? {
+                  kind: 'card_form',
+                  fields: 'stripe',
+                  publishableKey: account.public.publishableKey ?? '',
+                  clientSecret: `${payment.ref}_secret`,
+                }
+              : {
+                  kind: 'card_form',
+                  fields: 'komoju',
+                  publishableKey: account.public.publishableKey ?? '',
+                  sessionId: payment.ref,
+                },
         };
       },
       read: async (ref) => provider.read(ref),

@@ -14,3 +14,14 @@ export function isCurrency(value: unknown): value is Currency {
 export function isPositiveAmount(value: unknown): value is MinorUnits {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
+
+/** The amount as text for a person, in the notation of `locale`. */
+export function formatAmount(amount: MinorUnits, currency: Currency, locale: string): string {
+  const exponent = CURRENCY_EXPONENTS[currency];
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: exponent,
+    maximumFractionDigits: exponent,
+  }).format(amount / 10 ** exponent);
+}

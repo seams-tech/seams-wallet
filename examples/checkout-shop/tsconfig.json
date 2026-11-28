@@ -1,0 +1,13 @@
+{
+  "extends": "../../packages/checkout/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "declaration": false,
+    "paths": {
+      "@shared/*": ["../../packages/shared-ts/src/*"],
+      "@seams/checkout/client": ["../../packages/checkout/src/client/index.ts"],
+      "@seams/checkout/server": ["../../packages/checkout/src/server/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

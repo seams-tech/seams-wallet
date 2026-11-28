@@ -1,6 +1,7 @@
 packages:
   - apps/docs
   - crates/router-ab-cloudflare
+  - examples/checkout-shop
   - examples/seams-auth-menu
   - examples/wallet-console-lite
   - packages/checkout
